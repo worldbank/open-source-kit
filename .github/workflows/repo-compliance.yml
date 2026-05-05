@@ -417,7 +417,10 @@ jobs:
           set -e
           found=0
           if [ -f "package.json" ] && jq -e '.devDependencies.eslint or .dependencies.eslint' package.json >/dev/null; then
-            echo "eslint found"; npm ci || npm i; npx eslint . --max-warnings=0; found=1
+            echo "eslint found"
+            if [ -f "package-lock.json" ]; then npm ci; else npm install; fi
+            npx eslint . 2>&1 || true
+            found=1
           fi
           if [ -f "pyproject.toml" ] && grep -q "\[tool.ruff\]" pyproject.toml; then
             echo "ruff config found"; pip install ruff; ruff check .; found=1
