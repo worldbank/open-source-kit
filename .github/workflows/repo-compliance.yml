@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: itsapdemo/open-source-kit
+          repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - run: npm i -g markdownlint-cli
@@ -160,7 +160,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: itsapdemo/open-source-kit
+          repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - name: GitHub Languages API
@@ -282,7 +282,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: itsapdemo/open-source-kit
+          repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - name: Check data files
@@ -310,7 +310,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: itsapdemo/open-source-kit
+          repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - name: Detect AI usage

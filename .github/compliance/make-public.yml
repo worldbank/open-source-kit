@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   compliance:
-    uses: itsapdemo/open-source-kit/.github/workflows/repo-compliance.yml@main
+    uses: worldbank/open-source-kit/.github/workflows/repo-compliance.yml@main
     with:
       history_depth: ${{ github.event.inputs.history_depth }}
     secrets: inherit

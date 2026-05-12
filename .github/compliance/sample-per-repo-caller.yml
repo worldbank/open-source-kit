@@ -33,7 +33,7 @@ permissions:
   issues: write
 jobs:
   run:
-    uses: itsapdemo/open-source-kit/.github/workflows/repo-compliance.yml@main
+    uses: worldbank/open-source-kit/.github/workflows/repo-compliance.yml@main
     with:
       history_depth: ${{ inputs.history_depth || 0 }}
     secrets: inherit
