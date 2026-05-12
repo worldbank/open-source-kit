@@ -1,18 +1,25 @@
 ---
-name: wbg-oss-catalog
+name: wbg-oss-review
 description: >
-  Audits and prepares a GitHub repository for endorsement in the World Bank Group (WBG) Open Source Code Catalog.
-  Use this skill whenever a user mentions submitting a repo to the World Bank open source catalog,
-  WBG OSS endorsement, preparing a repo for World Bank review, or wants to check/fix a repository against
+  Audits and prepares a GitHub repository for World Bank Group (WBG) open source publication.
+  Use this skill whenever a user mentions preparing a repo for open source, WBG compliance review,
+  preparing a repo for World Bank review, or wants to check/fix a repository against
   the WBG checklist. Also trigger when a user says their repo needs the WB license (MIT or Apache 2.0 with the
-  matching IGO rider), citation file, code of
-  conduct, contributing guide, or any combination of World Bank open source requirements. Even if they just
-  say "prepare my repo for the World Bank catalog" or "audit my repo for WBG", use this skill.
+  matching IGO rider), citation file, code of conduct, contributing guide, or any combination of
+  World Bank open source requirements. Even if they just say "prepare my repo for open source",
+  "review my repo", or "audit my repo for WBG", use this skill.
 ---
 
-# WBG Open Source Code Catalog — Repo Preparer
+# WBG Open Source Publication — Repo Preparer
 
-This skill helps users audit and prepare a GitHub repository for endorsement in the World Bank Group Open Source Code Catalog. You will scan the repo, identify gaps against the official checklist, generate a clear status report, and help create or fix any missing files.
+This skill helps users audit and prepare a GitHub repository for World Bank Group open source publication. It is designed as a self-service tool — linked from the intranet public repository review request form — so that teams can independently identify and fix compliance gaps before submitting their repo for OSPO review.
+
+You will scan the repo, identify gaps against the official checklist, generate a clear status report, and help create or fix any missing files.
+
+## Reference Files
+
+- `./references/checklist.md` — Full detail on each requirement, including required text verbatim and template links
+- `./references/templates.md` — Starter templates for README sections, CITATION.cff, and the license notice
 
 ## Workflow
 
@@ -33,7 +40,7 @@ Do this scanning in parallel where possible to move fast.
 Produce a structured checklist report with status icons for each requirement. Use this format:
 
 ```
-## WBG Open Source Catalog — Audit Report
+## WBG Open Source Publication — Audit Report
 
 ### ✅ / ⚠️ / ❌  [Requirement Name]
 **Status**: Pass / Needs Work / Missing
@@ -48,6 +55,16 @@ Work through all 10 requirements (see reference below). Be specific — don't ju
 After the report, ask the user: "Would you like me to create or update any of these files?" Then do what they ask, one file at a time. Use the templates in `references/templates.md` as your starting point, but always personalize with real project details (name, description, contact info, etc.) gathered from the repo or by asking the user.
 
 When creating files, prefer to update existing files rather than overwrite them wholesale — especially README.md.
+
+### Next steps
+
+After all fixes are applied, let the user know:
+
+1. **Commit and push** the changes to a branch and open a pull request.
+2. **Submit for OSPO review** via the intranet public repository review request form. The OSPO will review the repo and, once approved, change its visibility to public.
+3. **Manual items to address** before or during review:
+   - Set the GitHub repo **About** section: description, website, topics (Requirement 2)
+   - Set up a **documentation site** — GitHub Pages, Jupyter Book, etc. (Requirement 5)
 
 ---
 
@@ -71,7 +88,7 @@ Read `references/checklist.md` for the full detail on each requirement. Here's t
 
 ### License choice (MIT vs Apache)
 
-Catalog-eligible projects may use either **MIT** or **Apache License, Version 2.0** as the base license, each paired with the correct rider:
+Repos may use either **MIT** or **Apache License, Version 2.0** as the base license, each paired with the correct rider:
 
 | Base license | IGO rider (canonical) |
 |--------------|------------------------|
@@ -109,14 +126,7 @@ Report findings with specific file paths so the user can act on them.
 
 ## Tone and Communication
 
-- Be direct and actionable. Users are typically World Bank staff or contractors who want to get through this process efficiently.
+- Be direct and actionable. Users are World Bank staff preparing their own repositories for open source publication.
 - When something is ambiguous (e.g., "does this README have a description?"), use your judgment and explain your reasoning.
 - Don't be preachy about open source best practices beyond what's in the checklist.
 - For items 7 and 8 (Code of Conduct, Contributing Guide), the WB provides official templates — users should use those exact files, not write their own.
-
----
-
-## Reference Files
-
-- `references/checklist.md` — Full detail on each requirement, including required text verbatim and template links
-- `references/templates.md` — Starter templates for README sections, CITATION.cff, and the license notice

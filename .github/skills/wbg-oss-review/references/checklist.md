@@ -1,5 +1,7 @@
 # WBG Open Source Code Catalog — Full Checklist Reference
 
+> **Native GitHub features**: The compliance workflow queries GitHub's native Secret Scanning, Dependabot, and Code Scanning (CodeQL) APIs rather than duplicating these scans. For **private** repos, Secret Scanning falls back to TruffleHog and CodeQL shows as "skipped" — both activate natively once the repo is made public. Do not flag a skipped CodeQL result as a failure during pre-publication review.
+
 ## Requirement 1: README.md
 
 The README.md must include ALL of the following:
