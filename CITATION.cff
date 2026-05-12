@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Open Source Compliance Kit"
+authors:
+  - family-names: "Lu"
+    given-names: "Wei"
+    affiliation: "World Bank"
+  - family-names: "Solatorio"
+    given-names: "Aivin V."
+    affiliation: "World Bank"
+  - family-names: "Cahill"
+    given-names: "Bryan"
+    affiliation: "World Bank"
+license: MIT
+version: "1.0.0"
+date-released: "2026-05-12"
+url: "https://github.com/worldbank/open-source-kit"

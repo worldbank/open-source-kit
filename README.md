@@ -2,6 +2,16 @@
 
 A self-service toolkit for World Bank Group GitHub organization members to prepare their repositories for open source publication. It includes a reusable GitHub Actions compliance workflow and an interactive VS Code Copilot skill that audits repos against the WBG open source checklist and helps fix any gaps — so teams can get their repos ready before submitting for OSPO review.
 
+## Getting Started
+
+This repo provides two tools you can copy into your own repository:
+
+1. **Compliance workflow** — Copy [`.github/compliance/sample-per-repo-caller.yml`](.github/compliance/sample-per-repo-caller.yml) to your repo as `.github/workflows/compliance.yml` and push. The workflow runs automatically and creates a compliance issue with results.
+
+2. **Copilot skill** — Copy the [`.github/skills/wbg-oss-review/`](.github/skills/wbg-oss-review/) directory into your repo, open it in VS Code, and ask Copilot to "prepare my repo for open source". The skill will audit your repo and help fix any gaps.
+
+See [How Teams Adopt](#how-teams-adopt) for the full walkthrough.
+
 ## Checks
 
 - **License** — Whitelist: MIT, Apache-2.0. Requires WB IGO Rider for each.
