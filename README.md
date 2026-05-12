@@ -1,6 +1,6 @@
 # Open Source Compliance Kit
 
-Reusable GitHub Actions workflow and Copilot skill for World Bank open source compliance.
+A self-service toolkit for World Bank Group GitHub organization members to prepare their repositories for open source publication. It includes a reusable GitHub Actions compliance workflow and an interactive VS Code Copilot skill that audits repos against the WBG open source checklist and helps fix any gaps — so teams can get their repos ready before submitting for OSPO review.
 
 ## Checks
 
