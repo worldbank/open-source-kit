@@ -9,8 +9,8 @@
 # To fix failures:
 #   1. Copy .github/skills/wbg-oss-review/ from open-source-kit to your repo
 #   2. Open in VS Code and invoke the wbg-oss-review skill
-#   3. Provide the compliance issue content and intranet form data
-#   4. Commit fixes to a branch and create a PR
+#      (e.g., "prepare my repo for open source")
+#   3. Commit fixes to a branch and create a PR
 #
 name: Open Source Compliance
 on:

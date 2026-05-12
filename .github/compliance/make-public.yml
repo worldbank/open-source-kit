@@ -1,7 +1,7 @@
 name: Pre-Publication Compliance Check
 # Run this before manually changing repository visibility to public.
 # Performs a deep compliance check including full git history secret scan.
-# If all checks pass, the OSPO lead can manually flip visibility in GitHub Settings.
+# If all checks pass, the OSPO can approve and change visibility to public in GitHub Settings.
 on:
   workflow_dispatch:
     inputs:
