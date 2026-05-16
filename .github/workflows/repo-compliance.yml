@@ -112,6 +112,7 @@ jobs:
              [ "${{ steps.rider-mit.outcome }}" = "failure" ] || \
              [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -146,6 +147,7 @@ jobs:
           if [ "${{ steps.lint.outcome }}" = "failure" ] || \
              [ "${{ steps.content.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -268,6 +270,7 @@ jobs:
           if [ "${{ steps.scan-api.outcome }}" = "failure" ] || \
              [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -296,6 +299,7 @@ jobs:
         run: |
           if [ "${{ steps.check.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -324,6 +328,7 @@ jobs:
         run: |
           if [ "${{ steps.detect.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -399,6 +404,7 @@ jobs:
         run: |
           if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -475,6 +481,7 @@ jobs:
         run: |
           if [ "${{ steps.scan.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
@@ -527,6 +534,7 @@ jobs:
           if [ "${{ steps.local.outcome }}" = "failure" ] || \
              [ "${{ steps.superlinter.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
           fi
