@@ -108,10 +108,13 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.whitelist.outcome }}" = "failure" ] || \
-             [ "${{ steps.rider-mit.outcome }}" = "failure" ] || \
-             [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then
+          failed=""
+          if [ "${{ steps.whitelist.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Enforce whitelist"; fi
+          if [ "${{ steps.rider-mit.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Rider (required for MIT)"; fi
+          if [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Apache Rider (required for Apache-2.0)"; fi
+          if [ -n "$failed" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=License check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -144,9 +147,12 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.lint.outcome }}" = "failure" ] || \
-             [ "${{ steps.content.outcome }}" = "failure" ]; then
+          failed=""
+          if [ "${{ steps.lint.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Lint README"; fi
+          if [ "${{ steps.content.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Content checks"; fi
+          if [ -n "$failed" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=README check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -267,9 +273,12 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.scan-api.outcome }}" = "failure" ] || \
-             [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then
+          failed=""
+          if [ "${{ steps.scan-api.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Query Secret Scanning API"; fi
+          if [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then failed="${failed:+$failed, }TruffleHog scan"; fi
+          if [ -n "$failed" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Secrets check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -299,6 +308,7 @@ jobs:
         run: |
           if [ "${{ steps.check.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Data files check failed::Step 'Check data files' failed — expand it above in the job log for details."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -328,6 +338,7 @@ jobs:
         run: |
           if [ "${{ steps.detect.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=AI usage check failed::Step 'Detect AI usage' failed — expand it above in the job log for details."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -340,7 +351,8 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - id: dep-check
+      - name: Query Dependabot Alerts API
+        id: dep-check
         uses: actions/github-script@v7
         continue-on-error: true
         env:
@@ -404,6 +416,7 @@ jobs:
         run: |
           if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Dependencies check failed::Step 'Query Dependabot Alerts API' failed — expand it above for details (e.g. critical/high vulnerabilities, or token missing security_events scope)."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -481,6 +494,7 @@ jobs:
         run: |
           if [ "${{ steps.scan.outcome }}" = "failure" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Dependency licenses check failed::Step 'Trivy license scan' failed — restricted licenses (HIGH/CRITICAL) found in dependencies. Expand it above for the package list."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
@@ -531,9 +545,12 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.local.outcome }}" = "failure" ] || \
-             [ "${{ steps.superlinter.outcome }}" = "failure" ]; then
+          failed=""
+          if [ "${{ steps.local.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Detect & run local linters"; fi
+          if [ "${{ steps.superlinter.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Super-Linter fallback"; fi
+          if [ -n "$failed" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Code quality check failed::Failing step(s): $failed — expand each step above in the job log to see the specific lint error."
             exit 1
           else
             echo "result=success" >> $GITHUB_OUTPUT
