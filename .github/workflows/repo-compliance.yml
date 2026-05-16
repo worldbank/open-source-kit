@@ -3,6 +3,7 @@ name: Repo Compliance
 #   - Enable Dependabot org-wide: Settings > Code security > Dependabot alerts
 #   - The dependencies job queries Dependabot Alerts API (free tier)
 #   - Secret scanning: queries GitHub Secret Scanning API (public); TruffleHog fallback (private)
+#   - Dependency licenses: Trivy filesystem scan (public + private, no GHAS required)
 #   - Code quality (linting): local linters or Super-Linter fallback
 #   - Code quality (CodeQL): queries GitHub Code Scanning API (public); skipped for private repos
 #   - Native GitHub features (Secret Scanning, Dependabot, CodeQL) are queried, not duplicated
@@ -402,6 +403,82 @@ jobs:
             echo "result=success" >> $GITHUB_OUTPUT
           fi
 
+  # --- Dependency license compatibility via Trivy (free, public + private, no GHAS) ---
+  # Trivy scans dependency manifests (package.json, requirements.txt, pyproject.toml,
+  # go.mod, Cargo.toml, Gemfile.lock, etc.) and classifies discovered licenses.
+  # CRITICAL/HIGH severity = restricted / unknown licenses (GPL family, etc.) → fail.
+  # MEDIUM/LOW = weak-copyleft / notice → informational only.
+  dependency-licenses:
+    runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.set-outcome.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy license scan
+        id: scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: license
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: json
+          output: trivy-licenses.json
+      - name: Summarize license findings
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('trivy-licenses.json')) {
+              core.warning('Trivy did not produce a report — license scan may have errored');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync('trivy-licenses.json', 'utf8'));
+            const findings = [];
+            for (const result of report.Results || []) {
+              for (const lic of result.Licenses || []) {
+                findings.push({
+                  pkg: lic.PkgName || result.Target || 'unknown',
+                  license: lic.Name || 'UNKNOWN',
+                  category: lic.Category || 'unknown',
+                  severity: lic.Severity || 'UNKNOWN'
+                });
+              }
+            }
+            const restricted = findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH');
+            const weak = findings.filter(f => f.severity === 'MEDIUM' || f.severity === 'LOW');
+
+            core.summary.addHeading('Dependency License Scan (Trivy)', 2);
+            core.summary.addTable([
+              [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
+              ['🔴 Restricted (HIGH/CRITICAL)', String(restricted.length)],
+              ['🟡 Weak / Notice (MEDIUM/LOW)', String(weak.length)],
+              ['✅ Permissive / Unencumbered', String(findings.length - restricted.length - weak.length)]
+            ]);
+
+            if (restricted.length > 0) {
+              core.summary.addHeading('Restricted Licenses (blocking)', 3);
+              const items = restricted.slice(0, 20).map(f =>
+                `**${f.pkg}** — ${f.license} (${f.category})`
+              );
+              core.summary.addList(items);
+              if (restricted.length > 20) {
+                core.summary.addRaw(`...and ${restricted.length - 20} more\n`);
+              }
+            }
+            await core.summary.write();
+      - name: Set outcome
+        id: set-outcome
+        if: always()
+        run: |
+          if [ "${{ steps.scan.outcome }}" = "failure" ]; then
+            echo "result=failure" >> $GITHUB_OUTPUT
+          else
+            echo "result=success" >> $GITHUB_OUTPUT
+          fi
+
   # --- Code quality/security: prefer local linters; fallback to Super-Linter ---
   code-quality-basic:
     runs-on: ubuntu-latest
@@ -457,7 +534,7 @@ jobs:
   # --- Summary: Create/update issue for failed checks (default branch only) ---
   summary:
     runs-on: ubuntu-latest
-    needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, code-quality-basic]
+    needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, dependency-licenses, code-quality-basic]
     if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     steps:
       - uses: actions/github-script@v7
@@ -512,6 +589,7 @@ jobs:
               'Secrets': '${{ needs.secrets.outputs.outcome }}' || '${{ needs.secrets.result }}',
               'Data Files': '${{ needs.data-files.outputs.outcome }}' || '${{ needs.data-files.result }}',
               'Dependencies': '${{ needs.dependencies.outputs.outcome }}' || '${{ needs.dependencies.result }}',
+              'Dependency Licenses': '${{ needs.dependency-licenses.outputs.outcome }}' || '${{ needs.dependency-licenses.result }}',
               'Code Quality (Basic)': '${{ needs.code-quality-basic.outputs.outcome }}' || '${{ needs.code-quality-basic.result }}',
               'Code Quality (CodeQL)': codeqlStatus
             };
@@ -548,6 +626,7 @@ jobs:
               'Secrets': 'secrets',
               'Data Files': 'data-files',
               'Dependencies': 'dependencies',
+              'Dependency Licenses': 'dependency-licenses',
               'Code Quality (Basic)': 'code-quality-basic'
             };
 
