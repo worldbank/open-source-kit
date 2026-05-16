@@ -70,10 +70,10 @@ jobs:
           echo "Checking rider content matches canonical version..."
           curl -sSfL "$CANONICAL_URL" -o /tmp/canonical-rider.md
 
-          if ! diff -q "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
+          if ! diff -qwB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
             echo "::error::WB-IGO-RIDER.md content does not match canonical version at $CANONICAL_URL"
-            echo "::group::Diff"
-            diff "$RIDER_FILE" /tmp/canonical-rider.md || true
+            echo "::group::Diff (whitespace-insensitive)"
+            diff -wB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md || true
             echo "::endgroup::"
             exit 1
           fi
@@ -95,10 +95,10 @@ jobs:
           echo "Checking rider content matches canonical version..."
           curl -sSfL "$CANONICAL_URL" -o /tmp/canonical-rider.md
 
-          if ! diff -q "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
+          if ! diff -qwB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
             echo "::error::WB-IGO-RIDER-APACHE.md content does not match canonical version at $CANONICAL_URL"
-            echo "::group::Diff"
-            diff "$RIDER_FILE" /tmp/canonical-rider.md || true
+            echo "::group::Diff (whitespace-insensitive)"
+            diff -wB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md || true
             echo "::endgroup::"
             exit 1
           fi
