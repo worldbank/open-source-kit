@@ -1,0 +1,28 @@
+name: Open Source Compliance
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule: [{ cron: '17 2 * * *' }]
+  workflow_dispatch:
+    inputs:
+      history_depth:
+        description: 'Commits to scan for secrets (0 = off)'
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  checks: write
+  pull-requests: read
+  statuses: write
+  issues: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/repo-compliance.yml
+    with:
+      history_depth: ${{ inputs.history_depth || 0 }}
+    secrets: inherit
