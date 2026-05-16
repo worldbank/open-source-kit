@@ -512,7 +512,11 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
+      # Super-Linter compares HEAD to the default branch and needs the full history
+      # to find both. Without fetch-depth: 0, it fatals with
+      # "The GITHUB_SHA reference (<sha>) doesn't exist in this Git repository".
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
 
       - name: Detect & run local linters
         id: local
