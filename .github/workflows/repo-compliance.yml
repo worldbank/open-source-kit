@@ -242,24 +242,30 @@ jobs:
             } catch (e) {
               if (e.status === 404) {
                 core.warning('Secret scanning not available for this repo. Enable at: Settings > Code security > Secret scanning');
+                core.setOutput('fallback', 'true');
+              } else if (e.status === 403) {
+                // GITHUB_TOKEN often lacks secret_scanning_alerts scope, especially on
+                // org-owned repos with Code Security policy. Fall back to TruffleHog.
+                core.warning(`Secret Scanning API returned 403 (token lacks secret_scanning_alerts scope). Falling back to TruffleHog.`);
+                core.setOutput('fallback', 'true');
               } else {
                 throw e;
               }
             }
 
-      # --- Private repos: TruffleHog scan (native secret scanning requires GHAS) ---
+      # --- TruffleHog: runs on private repos OR when the public API path is unavailable ---
       - uses: actions/checkout@v4
-        if: steps.route.outputs.visibility != 'public'
+        if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
         with: { fetch-depth: 0 }
       - name: TruffleHog scan
         id: trufflehog
-        if: steps.route.outputs.visibility != 'public'
+        if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
         uses: trufflesecurity/trufflehog@main
         with:
           extra_args: --only-verified
         continue-on-error: true
       - name: TruffleHog deep history scan
-        if: steps.route.outputs.visibility != 'public' && inputs.history_depth > 0
+        if: (steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true') && inputs.history_depth > 0
         run: |
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
           trufflehog git file://. --no-update --json > trufflehog-results.json 2>/dev/null || true
