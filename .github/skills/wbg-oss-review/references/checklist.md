@@ -29,7 +29,7 @@ The following **exact text** must appear at the bottom of the README. Use **one*
 
 **If the project uses the MIT License** (with [`WB-IGO-RIDER.md`](https://github.com/worldbank/.github/blob/main/WB-IGO-RIDER.md)):
 
-```
+```text
 This project is licensed under the MIT License together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the MIT permissions. Please review both files
@@ -38,7 +38,7 @@ before using, distributing or contributing.
 
 **If the project uses the Apache License, Version 2.0** (with [`WB-IGO-RIDER-APACHE.md`](https://github.com/worldbank/.github/blob/main/WB-IGO-RIDER-APACHE.md)):
 
-```
+```text
 This project is licensed under the Apache License, Version 2.0 together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the Apache permissions. Please review both files

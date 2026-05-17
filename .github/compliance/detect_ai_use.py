@@ -1,29 +1,40 @@
-import os, re
+import os
+import re
+import json
+
 PATTERNS = [
-  r"\bopenai\b", r"\bazure\s*ai\b", r"\bvertex\s*ai\b", r"\banthropic\b",
-  r"\bhuggingface\b", r"\btransformers\b", r"\bllama[-\s]?cpp\b",
-  r"\bmlflow\b", r"\bstable[-\s]?diffusion\b", r"\bwhisper\b"
+    r"\bopenai\b", r"\bazure\s*ai\b", r"\bvertex\s*ai\b", r"\banthropic\b",
+    r"\bhuggingface\b", r"\btransformers\b", r"\bllama[-\s]?cpp\b",
+    r"\bmlflow\b", r"\bstable[-\s]?diffusion\b", r"\bwhisper\b",
 ]
 RX = re.compile("|".join(PATTERNS), re.IGNORECASE)
+
+SCAN_EXTS = (
+    ".py", ".js", ".ts", ".md", ".json", ".yml", ".yaml",
+    ".go", ".java", ".tf", ".sh", ".ipynb", ".r", ".do", ".ado",
+)
+
 hits = []
-for root,_,files in os.walk("."):
-  if root.startswith("./.git"): continue
-  for f in files:
-    if f.endswith((".py",".js",".ts",".md",".json",".yml",".yaml",".go",".java",".tf",".sh",".ipynb",".r",".do",".ado")):
-      try:
-        with open(os.path.join(root,f), "r", encoding="utf-8", errors="ignore") as fh:
-          txt = fh.read()
-        if RX.search(txt): hits.append(os.path.join(root,f))
-      except Exception:
-        pass
+for root, _, files in os.walk("."):
+    if root.startswith("./.git"):
+        continue
+    for f in files:
+        if f.endswith(SCAN_EXTS):
+            try:
+                with open(os.path.join(root, f), "r", encoding="utf-8", errors="ignore") as fh:
+                    txt = fh.read()
+                if RX.search(txt):
+                    hits.append(os.path.join(root, f))
+            except Exception:
+                pass
+
 if hits:
-  print("AI usage indicators found in:")
-  for h in hits: print(f"- {h}")
+    print("AI usage indicators found in:")
+    for h in hits:
+        print(f"- {h}")
 
 # Output for GitHub Actions
-import json
 if "GITHUB_OUTPUT" in os.environ:
-  with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-    f.write(f"detected={'true' if hits else 'false'}\n")
-    f.write(f"files={json.dumps(hits[:10])}\n")  # Limit to 10 files
-
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"detected={'true' if hits else 'false'}\n")
+        f.write(f"files={json.dumps(hits[:10])}\n")  # Limit to 10 files

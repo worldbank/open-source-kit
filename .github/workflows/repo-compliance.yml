@@ -113,11 +113,11 @@ jobs:
           if [ "${{ steps.rider-mit.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Rider (required for MIT)"; fi
           if [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Apache Rider (required for Apache-2.0)"; fi
           if [ -n "$failed" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=License check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- README checks ---
@@ -151,11 +151,11 @@ jobs:
           if [ "${{ steps.lint.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Lint README"; fi
           if [ "${{ steps.content.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Content checks"; fi
           if [ -n "$failed" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=README check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Languages via GitHub API + framework detection script ---
@@ -271,7 +271,7 @@ jobs:
           trufflehog git file://. --no-update --json > trufflehog-results.json 2>/dev/null || true
           if [ -s trufflehog-results.json ]; then
             echo "::warning::Potential secrets found in git history"
-            cat trufflehog-results.json | head -50
+            head -50 trufflehog-results.json
           else
             echo "No secrets found in history scan"
           fi
@@ -283,11 +283,11 @@ jobs:
           if [ "${{ steps.scan-api.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Query Secret Scanning API"; fi
           if [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then failed="${failed:+$failed, }TruffleHog scan"; fi
           if [ -n "$failed" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=Secrets check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Data file scan (warn/fail per policy) ---
@@ -313,11 +313,11 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.check.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=Data files check failed::Step 'Check data files' failed — expand it above in the job log for details."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- AI usage hints (informational) ---
@@ -343,11 +343,11 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.detect.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=AI usage check failed::Step 'Detect AI usage' failed — expand it above in the job log for details."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Dependency security via Dependabot API (free) ---
@@ -421,11 +421,11 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=Dependencies check failed::Step 'Query Dependabot Alerts API' failed — expand it above for details (e.g. critical/high vulnerabilities, or token missing security_events scope)."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Dependency license compatibility via Trivy (free, public + private, no GHAS) ---
@@ -499,11 +499,11 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.scan.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=Dependency licenses check failed::Step 'Trivy license scan' failed — restricted licenses (HIGH/CRITICAL) found in dependencies. Expand it above for the package list."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Code quality/security: prefer local linters; fallback to Super-Linter ---
@@ -535,7 +535,7 @@ jobs:
           elif [ -f ".flake8" ] || ( [ -f "setup.cfg" ] && grep -q "\[flake8\]" setup.cfg ); then
             echo "flake8 config found"; pip install flake8; flake8 .; found=1
           fi
-          if [ $found -eq 0 ]; then echo "fallback=true" >> $GITHUB_OUTPUT; fi
+          if [ $found -eq 0 ]; then echo "fallback=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Super-Linter fallback
         id: superlinter
@@ -545,6 +545,9 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WB-IGO-RIDER*.md are canonical files mirrored from worldbank/.github;
+          # linting them would force us to diverge from the canonical content.
+          FILTER_REGEX_EXCLUDE: ".*WB-IGO-RIDER.*\\.md"
           # Only enable essential linters
           VALIDATE_YAML: true
           VALIDATE_JSON: true
@@ -559,11 +562,11 @@ jobs:
           if [ "${{ steps.local.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Detect & run local linters"; fi
           if [ "${{ steps.superlinter.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Super-Linter fallback"; fi
           if [ -n "$failed" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "::error title=Code quality check failed::Failing step(s): $failed — expand each step above in the job log to see the specific lint error."
             exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Summary: Create/update a compliance issue every run (paper trail) ---

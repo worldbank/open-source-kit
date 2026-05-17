@@ -87,7 +87,7 @@ The following exact text must appear at the bottom of the README. Pick the block
 
 **MIT:**
 
-```
+```text
 This project is licensed under the MIT License together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the MIT permissions. Please review both files
@@ -96,7 +96,7 @@ before using, distributing or contributing.
 
 **Apache License, Version 2.0:**
 
-```
+```text
 This project is licensed under the Apache License, Version 2.0 together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the Apache permissions. Please review both files
@@ -148,7 +148,7 @@ Full template reference: https://github.com/worldbank/template/blob/main/CITATIO
 
 ## LICENSE — MIT License
 
-```
+```text
 MIT License
 
 Copyright (c) [year] The World Bank
@@ -186,7 +186,7 @@ Use the **verbatim** Apache License, Version 2.0 text (not summarized) from the 
 
 In the **APPENDIX** (end of the license), set the copyright line to something like:
 
-```
+```text
 Copyright [yyyy] The World Bank
 ```
 

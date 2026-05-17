@@ -39,7 +39,7 @@ Do this scanning in parallel where possible to move fast.
 
 Produce a structured checklist report with status icons for each requirement. Use this format:
 
-```
+```text
 ## WBG Open Source Publication — Audit Report
 
 ### ✅ / ⚠️ / ❌  [Requirement Name]
