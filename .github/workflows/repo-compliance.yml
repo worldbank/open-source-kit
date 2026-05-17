@@ -352,11 +352,16 @@ jobs:
             echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
-  # --- Dependency security via Dependabot API (free) ---
-  # Requires Dependabot to be enabled org-wide
+  # --- Dependency security: native Dependabot Alerts API, with Trivy vuln scan as fallback ---
+  # The Dependabot path needs org-wide enablement + a token with security_events scope.
+  # If the API returns 403/404, we transparently fall back to Trivy's offline vuln scan
+  # (uses its own DB; no GHAS required) so the check still produces a real result.
   dependencies:
     runs-on: ubuntu-latest
     outputs:
+      # If the native API path 403/404'd and we fell back to Trivy, surface 'trivy-fallback'
+      # so the summary footer doesn't claim Dependabot ran.
+      source: ${{ steps.dep-check.outputs.fallback == 'true' && 'trivy-fallback' || 'github-api' }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
       - name: Query Dependabot Alerts API
@@ -413,18 +418,79 @@ jobs:
               }
             } catch (e) {
               if (e.status === 404 || e.status === 403) {
-                core.warning('Dependabot alerts not accessible. Enable at: Settings > Code security > Dependabot alerts');
+                core.warning(`Dependabot Alerts API returned ${e.status} (token lacks security_events scope, or alerts not enabled). Falling back to Trivy vulnerability scan.`);
+                core.setOutput('fallback', 'true');
               } else {
                 throw e;
               }
             }
+
+      # --- Trivy: runs only when the Dependabot API path was inaccessible ---
+      - uses: actions/checkout@v4
+        if: steps.dep-check.outputs.fallback == 'true'
+      - name: Trivy vulnerability fallback
+        id: trivy-vuln
+        if: steps.dep-check.outputs.fallback == 'true'
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: json
+          output: trivy-vuln.json
+      - name: Summarize Trivy vuln findings
+        if: steps.dep-check.outputs.fallback == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('trivy-vuln.json')) {
+              core.warning('Trivy did not produce a vulnerability report');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync('trivy-vuln.json', 'utf8'));
+            const findings = [];
+            for (const result of report.Results || []) {
+              for (const v of result.Vulnerabilities || []) {
+                findings.push({
+                  pkg: v.PkgName || result.Target || 'unknown',
+                  id: v.VulnerabilityID || 'UNKNOWN',
+                  severity: v.Severity || 'UNKNOWN',
+                  installed: v.InstalledVersion || '',
+                  fixed: v.FixedVersion || ''
+                });
+              }
+            }
+            const critical = findings.filter(f => f.severity === 'CRITICAL');
+            const high = findings.filter(f => f.severity === 'HIGH');
+
+            core.summary.addHeading('Dependency Vulnerabilities (Trivy fallback)', 2);
+            core.summary.addTable([
+              [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
+              ['🔴 Critical', String(critical.length)],
+              ['🟠 High', String(high.length)]
+            ]);
+            if (critical.length + high.length > 0) {
+              core.summary.addHeading('Critical & High Severity', 3);
+              const items = [...critical, ...high].slice(0, 20).map(f =>
+                `**${f.pkg}** (${f.installed}${f.fixed ? ` → fixed in ${f.fixed}` : ''}): ${f.id}`
+              );
+              core.summary.addList(items);
+            }
+            await core.summary.write();
+
       - name: Set outcome
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then
+          failed=""
+          if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Query Dependabot Alerts API"; fi
+          if [ "${{ steps.trivy-vuln.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Trivy vulnerability fallback"; fi
+          if [ -n "$failed" ]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
-            echo "::error title=Dependencies check failed::Step 'Query Dependabot Alerts API' failed — expand it above for details (e.g. critical/high vulnerabilities, or token missing security_events scope)."
+            echo "::error title=Dependencies check failed::Failing step(s): $failed — expand each step above in the job log to see the specific vulnerabilities or token/scope error."
             exit 1
           else
             echo "result=success" >> "$GITHUB_OUTPUT"
@@ -770,7 +836,12 @@ jobs:
               'trufflehog-fallback': 'Using TruffleHog (public repo — fell back from native API; token lacks secret_scanning_alerts scope or scanning not enabled)',
             }[secretsSource] || `Unknown source: ${secretsSource}`;
             infoContent.push(`- **Secret Scanning:** ${secretsLabel}`);
-            infoContent.push(`- **Dependabot:** Using Dependabot Alerts API`);
+            const depsSource = '${{ needs.dependencies.outputs.source }}' || 'unknown';
+            const depsLabel = {
+              'github-api': 'Using Dependabot Alerts API',
+              'trivy-fallback': 'Using Trivy fallback (Dependabot API inaccessible — token lacks security_events scope or alerts not enabled)',
+            }[depsSource] || `Unknown source: ${depsSource}`;
+            infoContent.push(`- **Dependabot:** ${depsLabel}`);
             infoContent.push(`- **CodeQL:** ${codeqlSummary}`);
 
             const body = `## Compliance Check Results
