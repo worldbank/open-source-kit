@@ -9,6 +9,7 @@ These are *starting points*, not fill-in-the-blank forms. Before generating any 
 The README should feel like it was written by someone who understands the project deeply. Read the code and existing docs first.
 
 **Project types and their README emphasis:**
+
 - **Library/package**: Lead with a code snippet showing the main use case. Emphasize API and installation.
 - **Web application**: Screenshot is important. Focus on deployment and getting the app running.
 - **Research scripts / notebooks**: Emphasize data inputs/outputs, reproducibility, and what the outputs mean.
@@ -130,6 +131,7 @@ keywords:
 ```
 
 If the project has an associated paper or preprint, add:
+
 ```yaml
 preferred-citation:
   type: article
@@ -173,6 +175,7 @@ SOFTWARE.
 ```
 
 The WB IGO Rider (MIT) must also be present. Either:
+
 - Fetch the current text from https://github.com/worldbank/.github/blob/main/WB-IGO-RIDER.md and save as `WB-IGO-RIDER.md`
 - Or create `WB-IGO-RIDER.md` that clearly references the canonical URL
 
@@ -260,6 +263,7 @@ See the [README](https://github.com/worldbank/[repo-name]#readme) for installati
 ```
 
 To enable GitHub Pages from a `docs/` folder:
+
 1. Push the file to `docs/index.md` (or `docs/index.html`) on the default branch
 2. Go to GitHub repo Settings → Pages
 3. Set Source to "Deploy from a branch", Branch = `main`, folder = `/docs`

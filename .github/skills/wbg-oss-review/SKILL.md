@@ -84,7 +84,7 @@ Read `references/checklist.md` for the full detail on each requirement. Here's t
 | 9 | Exclusions | No original data, no secrets/API keys, avoid hard-coded variables |
 | 10 | Bibliography (optional) | BibTeX `.bib` file in `docs/` |
 
-*(Note: item 4 is not in the checklist — items go 1, 2, 3, 5, 6, 7, 8, 9, 10.)*
+> Note: item 4 is not in the checklist — items go 1, 2, 3, 5, 6, 7, 8, 9, 10.
 
 ### License choice (MIT vs Apache)
 
@@ -106,16 +106,19 @@ When helping the user choose: Apache is common for larger ecosystems (patent gra
 This is the trickiest requirement because violations may be hard to spot.
 
 **Secrets/API keys**: Search for common patterns:
+
 - Files named `.env`, `secrets.yaml`, `credentials.json`, `config.py` containing keys
 - Strings matching patterns like `sk-`, `AKIA`, `Bearer `, `password =`, `api_key =`
 - Check `.gitignore` — secrets files should be listed there
 
 **Hard-coded variables**: Look for:
+
 - Literal IP addresses, database connection strings
 - Hard-coded file paths (e.g., `/home/username/...`, `C:\Users\...`)
 - Hard-coded URLs that should be configuration
 
 **Data files**: Look for:
+
 - Large files or directories named `data/`, `datasets/`, `raw/`
 - `.csv`, `.xlsx`, `.shp`, `.geojson`, `.parquet`, `.db` files committed to the repo
 - If found, flag them — data should live in the World Bank Data Catalog, SharePoint, or similar

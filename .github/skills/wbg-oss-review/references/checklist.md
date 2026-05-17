@@ -7,24 +7,31 @@
 The README.md must include ALL of the following:
 
 ### 1a. Project Name
+
 A clear heading with the project name.
 
 ### 1b. Description (2-3 sentences)
+
 Clear description of purpose and target audience. Should answer: what does this do, and who is it for?
 
 ### 1c. Screenshot (if applicable)
+
 If the software has a visual output (UI, charts, maps, etc.), include at least one screenshot or example output image.
 
 ### 1d. Getting Started
+
 Must cover prerequisites, installation guidance, and at least one usage example. May vary by project type (CLI tool, Python library, web app, etc.).
 
 ### 1e. Documentation link
+
 Link to thorough documentation — either within the README or pointing to a separate page (GitHub Pages, Read the Docs, etc.).
 
 ### 1f. Contact Information
+
 Must include World Bank staff names and their `@worldbank.org` email addresses, OR a mailbox/distribution list. Personal emails outside WB domain do not count.
 
 ### 1g. License Notice
+
 The following **exact text** must appear at the bottom of the README. Use **one** of the two blocks below — the block must match the base license in `LICENSE` and the IGO rider file in the repo (see Requirement 3).
 
 **If the project uses the MIT License** (with [`WB-IGO-RIDER.md`](https://github.com/worldbank/.github/blob/main/WB-IGO-RIDER.md)):
@@ -88,12 +95,14 @@ Apache-licensed projects often also include a `NOTICE` file when required by thi
 The repo must have accompanying web-based documentation accessible to non-technical audiences.
 
 Acceptable forms:
+
 - GitHub Pages (simple HTML/Markdown)
 - Jupyter Book (common with WB Data Science Template)
 - Read the Docs
 - Any external documentation website
 
 The documentation link must appear in:
+
 1. The README.md
 2. The GitHub repository "Website" field (Requirement 2)
 
@@ -110,6 +119,7 @@ Format: [Citation File Format (CFF)](https://citation-file-format.github.io/)
 Template available at: https://github.com/worldbank/template/blob/main/CITATION.cff
 
 Minimum required fields:
+
 ```yaml
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
@@ -151,7 +161,9 @@ Do NOT write a custom contributing guide — use the official WB template.
 The repo must NOT contain:
 
 ### 9a. Original data
+
 Data files should NOT be stored in the repo. They should live in:
+
 - World Bank Data Catalog
 - SharePoint
 - OneDrive
@@ -162,7 +174,9 @@ Files to flag: `.csv`, `.xlsx`, `.xls`, `.ods`, `.db`, `.sqlite`, `.parquet`, `.
 Exception: small example/sample data files for documentation purposes may be acceptable — use judgment.
 
 ### 9b. Secrets and API keys
+
 Must not be committed. Common patterns to check:
+
 - Files: `.env`, `secrets.yaml`, `secrets.json`, `credentials.json`, `config.local.*`
 - Content patterns: `password`, `api_key`, `secret`, `token`, `AKIA` (AWS), `sk-` (OpenAI), `Bearer `
 - Check `.gitignore` to see if secret files are properly excluded
@@ -170,7 +184,9 @@ Must not be committed. Common patterns to check:
 A `.env.example` or `.env.sample` is acceptable (and encouraged) to show required variables.
 
 ### 9c. Hard-coded variables
+
 Avoid hard-coded:
+
 - File paths with usernames (e.g., `/home/jdoe/`, `C:\Users\jdoe\`)
 - Database connection strings
 - IP addresses and hostnames
