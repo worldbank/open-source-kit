@@ -185,11 +185,13 @@ jobs:
         id: detect
         run: python3 .compliance/.github/compliance/detect_stack.py
 
-  # --- Secrets: query native Secret Scanning API (public); TruffleHog fallback (private) ---
+  # --- Secrets: query native Secret Scanning API (public); TruffleHog fallback (private or API 403/404) ---
   secrets:
     runs-on: ubuntu-latest
     outputs:
-      source: ${{ steps.route.outputs.source }}
+      # If the public API path 403/404'd and we fell back to TruffleHog, surface
+      # 'trufflehog-fallback' so the summary footer doesn't claim the native API ran.
+      source: ${{ steps.scan-api.outputs.fallback == 'true' && 'trufflehog-fallback' || steps.route.outputs.source }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
       - name: Determine scan strategy
@@ -762,7 +764,12 @@ jobs:
             const secretsSource = '${{ needs.secrets.outputs.source }}' || 'unknown';
             infoContent.push('');
             infoContent.push(`**GitHub Native Integration**`);
-            infoContent.push(`- **Secret Scanning:** ${secretsSource === 'github-api' ? 'Using GitHub Secret Scanning API' : 'Using TruffleHog (private repo)'}`);
+            const secretsLabel = {
+              'github-api': 'Using GitHub Secret Scanning API',
+              'trufflehog': 'Using TruffleHog (private repo — native API requires GHAS)',
+              'trufflehog-fallback': 'Using TruffleHog (public repo — fell back from native API; token lacks secret_scanning_alerts scope or scanning not enabled)',
+            }[secretsSource] || `Unknown source: ${secretsSource}`;
+            infoContent.push(`- **Secret Scanning:** ${secretsLabel}`);
             infoContent.push(`- **Dependabot:** Using Dependabot Alerts API`);
             infoContent.push(`- **CodeQL:** ${codeqlSummary}`);
 
