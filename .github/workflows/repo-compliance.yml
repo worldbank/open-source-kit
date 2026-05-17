@@ -833,15 +833,15 @@ jobs:
             infoContent.push('');
             infoContent.push(`**GitHub Native Integration**`);
             const secretsLabel = {
-              'github-api': 'Using GitHub Secret Scanning API',
-              'trufflehog': 'Using TruffleHog (private repo — native API requires GHAS)',
-              'trufflehog-fallback': 'Using TruffleHog (public repo — fell back from native API; token lacks secret_scanning_alerts scope or scanning not enabled)',
+              'github-api': 'GitHub Secret Scanning API',
+              'trufflehog': 'TruffleHog (private repo)',
+              'trufflehog-fallback': 'TruffleHog (Secret Scanning API unavailable)',
             }[secretsSource] || `Unknown source: ${secretsSource}`;
             infoContent.push(`- **Secret Scanning:** ${secretsLabel}`);
             const depsSource = '${{ needs.dependencies.outputs.source }}' || 'unknown';
             const depsLabel = {
-              'github-api': 'Using Dependabot Alerts API',
-              'trivy-fallback': 'Using Trivy fallback (Dependabot API inaccessible — token lacks security_events scope or alerts not enabled)',
+              'github-api': 'Dependabot Alerts API',
+              'trivy-fallback': 'Trivy (Dependabot API unavailable)',
             }[depsSource] || `Unknown source: ${depsSource}`;
             infoContent.push(`- **Dependabot:** ${depsLabel}`);
             infoContent.push(`- **CodeQL:** ${codeqlSummary}`);
