@@ -616,6 +616,8 @@ jobs:
           # WB-IGO-RIDER*.md are canonical files mirrored from worldbank/.github;
           # linting them would force us to diverge from the canonical content.
           FILTER_REGEX_EXCLUDE: ".*WB-IGO-RIDER.*\\.md"
+          # Override default markdown rules by dropping this file into `.github/linters/` in the calling repo.
+          MARKDOWN_CONFIG_FILE: .markdownlint.json
           # Only enable essential linters
           VALIDATE_YAML: true
           VALIDATE_JSON: true
