@@ -877,17 +877,21 @@ jobs:
 
             // --- Route the summary based on what triggered this run ---
             //
-            //   pull_request                           → upsert a comment on the PR
-            //   push to default branch / schedule /    → manage the persistent repo issue
-            //   workflow_dispatch                        (the authoritative "is main compliant?" record)
-            //   anything else (e.g. push to feat/*)    → write workflow summary only, no comment/issue
+            //   pull_request                                     → upsert a comment on the PR
+            //   push / schedule / workflow_dispatch ON           → manage the persistent repo issue
+            //     default branch                                   (the authoritative "is main compliant?" record)
+            //   anything else (e.g. push to feat/*, or           → workflow summary only — no PR comment,
+            //     workflow_dispatch from a feature branch)         no issue update
+
             const eventName = context.eventName;
             const defaultBranch = repoMeta.data.default_branch;
+            const isOnDefaultBranch = context.ref === `refs/heads/${defaultBranch}`;
             const isPR = eventName === 'pull_request';
-            const isAuthoritative =
+            const isAuthoritative = isOnDefaultBranch && (
+              eventName === 'push' ||
               eventName === 'schedule' ||
-              eventName === 'workflow_dispatch' ||
-              (eventName === 'push' && context.ref === `refs/heads/${defaultBranch}`);
+              eventName === 'workflow_dispatch'
+            );
 
             if (isPR) {
               const prNumber = context.payload.pull_request.number;
