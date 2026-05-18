@@ -23,14 +23,14 @@ on:
         description: 'Commits to scan for secrets (0 = off)'
         type: number
         default: 0
+# Caller declares the SUPERSET of perms the reusable workflow may need.
+# The reusable workflow narrows per-job — write scopes land only in the summary job.
 permissions:
   contents: read
-  security-events: write
+  security-events: read
   actions: read
-  checks: write
-  pull-requests: read
-  statuses: write
   issues: write
+  pull-requests: write
 jobs:
   run:
     uses: worldbank/open-source-kit/.github/workflows/repo-compliance.yml@main

@@ -3,6 +3,7 @@ name: Repo Compliance
 #   - Enable Dependabot org-wide: Settings > Code security > Dependabot alerts
 #   - The dependencies job queries Dependabot Alerts API (free tier)
 #   - Secret scanning: queries GitHub Secret Scanning API (public); TruffleHog fallback (private)
+#   - Dependency licenses: Trivy filesystem scan (public + private, no GHAS required)
 #   - Code quality (linting): local linters or Super-Linter fallback
 #   - Code quality (CodeQL): queries GitHub Code Scanning API (public); skipped for private repos
 #   - Native GitHub features (Secret Scanning, Dependabot, CodeQL) are queried, not duplicated
@@ -18,14 +19,11 @@ on:
         description: "PAT with Dependabot alerts read permission"
         required: false
 
+# Workflow default = minimum (just checkout). Jobs that need more declare it
+# per-job below. This limits the blast radius if a PR contributes hostile code
+# (e.g. malicious package postinstall scripts run by ESLint / Super-Linter).
 permissions:
   contents: read
-  security-events: write
-  actions: read
-  checks: write
-  pull-requests: read
-  statuses: write
-  issues: write
 
 jobs:
   # --- License via GitHub API (whitelist MIT/Apache-2.0) + WB IGO Riders ---
@@ -34,10 +32,10 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: License from GitHub API
         id: gh-license
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const meta = await github.rest.repos.get(context.repo);
@@ -69,10 +67,10 @@ jobs:
           echo "Checking rider content matches canonical version..."
           curl -sSfL "$CANONICAL_URL" -o /tmp/canonical-rider.md
 
-          if ! diff -q "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
+          if ! diff -qwB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
             echo "::error::WB-IGO-RIDER.md content does not match canonical version at $CANONICAL_URL"
-            echo "::group::Diff"
-            diff "$RIDER_FILE" /tmp/canonical-rider.md || true
+            echo "::group::Diff (whitespace-insensitive)"
+            diff -wB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md || true
             echo "::endgroup::"
             exit 1
           fi
@@ -94,10 +92,10 @@ jobs:
           echo "Checking rider content matches canonical version..."
           curl -sSfL "$CANONICAL_URL" -o /tmp/canonical-rider.md
 
-          if ! diff -q "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
+          if ! diff -qwB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md >/dev/null 2>&1; then
             echo "::error::WB-IGO-RIDER-APACHE.md content does not match canonical version at $CANONICAL_URL"
-            echo "::group::Diff"
-            diff "$RIDER_FILE" /tmp/canonical-rider.md || true
+            echo "::group::Diff (whitespace-insensitive)"
+            diff -wB --strip-trailing-cr "$RIDER_FILE" /tmp/canonical-rider.md || true
             echo "::endgroup::"
             exit 1
           fi
@@ -107,12 +105,16 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.whitelist.outcome }}" = "failure" ] || \
-             [ "${{ steps.rider-mit.outcome }}" = "failure" ] || \
-             [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+          failed=""
+          if [ "${{ steps.whitelist.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Enforce whitelist"; fi
+          if [ "${{ steps.rider-mit.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Rider (required for MIT)"; fi
+          if [ "${{ steps.rider-apache.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Check WB IGO Apache Rider (required for Apache-2.0)"; fi
+          if [ -n "$failed" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=License check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- README checks ---
@@ -121,8 +123,8 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -142,11 +144,15 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.lint.outcome }}" = "failure" ] || \
-             [ "${{ steps.content.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+          failed=""
+          if [ "${{ steps.lint.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Lint README"; fi
+          if [ "${{ steps.content.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Content checks"; fi
+          if [ -n "$failed" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=README check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Languages via GitHub API + framework detection script ---
@@ -157,15 +163,15 @@ jobs:
       frameworks: ${{ steps.detect.outputs.frameworks }}
       # languages comes from GitHub API, frameworks from detect_stack.py
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - name: GitHub Languages API
         id: langs
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const r = await github.rest.repos.listLanguages(context.repo);
@@ -176,16 +182,21 @@ jobs:
         id: detect
         run: python3 .compliance/.github/compliance/detect_stack.py
 
-  # --- Secrets: query native Secret Scanning API (public); TruffleHog fallback (private) ---
+  # --- Secrets: query native Secret Scanning API (public); TruffleHog fallback (private or API 403/404) ---
   secrets:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     outputs:
-      source: ${{ steps.route.outputs.source }}
+      # If the public API path 403/404'd and we fell back to TruffleHog, surface
+      # 'trufflehog-fallback' so the summary footer doesn't claim the native API ran.
+      source: ${{ steps.scan-api.outputs.fallback == 'true' && 'trufflehog-fallback' || steps.route.outputs.source }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
       - name: Determine scan strategy
         id: route
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const meta = await github.rest.repos.get(context.repo);
@@ -199,7 +210,7 @@ jobs:
         id: scan-api
         if: steps.route.outputs.visibility == 'public'
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -210,53 +221,44 @@ jobs:
                 owner, repo, state: 'open', per_page: 100
               });
 
-              core.summary.addHeading('Secret Scanning Alerts (GitHub native)', 2);
-
               if (alerts.data.length === 0) {
-                core.summary.addRaw('✅ No open secret scanning alerts\n');
-                await core.summary.write();
-                core.info('No open secret scanning alerts');
+                core.info('✅ No open secret scanning alerts');
                 return;
               }
-
-              const items = alerts.data.slice(0, 10).map(a =>
-                `**${a.secret_type_display_name}** — ${a.state} (created ${a.created_at.substring(0, 10)})`
-              );
-              core.summary.addList(items);
-              if (alerts.data.length > 10) {
-                core.summary.addRaw(`...and ${alerts.data.length - 10} more\n`);
-              }
-              core.summary.addLink('View all alerts', `https://github.com/${owner}/${repo}/security/secret-scanning`);
-              await core.summary.write();
-
               core.setFailed(`Found ${alerts.data.length} open secret scanning alerts. Review: https://github.com/${owner}/${repo}/security/secret-scanning`);
             } catch (e) {
               if (e.status === 404) {
                 core.warning('Secret scanning not available for this repo. Enable at: Settings > Code security > Secret scanning');
+                core.setOutput('fallback', 'true');
+              } else if (e.status === 403) {
+                // GITHUB_TOKEN often lacks secret_scanning_alerts scope, especially on
+                // org-owned repos with Code Security policy. Fall back to TruffleHog.
+                core.warning(`Secret Scanning API returned 403 (token lacks secret_scanning_alerts scope). Falling back to TruffleHog.`);
+                core.setOutput('fallback', 'true');
               } else {
                 throw e;
               }
             }
 
-      # --- Private repos: TruffleHog scan (native secret scanning requires GHAS) ---
-      - uses: actions/checkout@v4
-        if: steps.route.outputs.visibility != 'public'
+      # --- TruffleHog: runs on private repos OR when the public API path is unavailable ---
+      - uses: actions/checkout@v5
+        if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
         with: { fetch-depth: 0 }
       - name: TruffleHog scan
         id: trufflehog
-        if: steps.route.outputs.visibility != 'public'
-        uses: trufflesecurity/trufflehog@main
+        if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
+        uses: trufflesecurity/trufflehog@v3.95.3
         with:
           extra_args: --only-verified
         continue-on-error: true
       - name: TruffleHog deep history scan
-        if: steps.route.outputs.visibility != 'public' && inputs.history_depth > 0
+        if: (steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true') && inputs.history_depth > 0
         run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.95.3/scripts/install.sh | sh -s -- -b /usr/local/bin
           trufflehog git file://. --no-update --json > trufflehog-results.json 2>/dev/null || true
           if [ -s trufflehog-results.json ]; then
             echo "::warning::Potential secrets found in git history"
-            cat trufflehog-results.json | head -50
+            head -50 trufflehog-results.json
           else
             echo "No secrets found in history scan"
           fi
@@ -264,11 +266,15 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.scan-api.outcome }}" = "failure" ] || \
-             [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+          failed=""
+          if [ "${{ steps.scan-api.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Query Secret Scanning API"; fi
+          if [ "${{ steps.trufflehog.outcome }}" = "failure" ]; then failed="${failed:+$failed, }TruffleHog scan"; fi
+          if [ -n "$failed" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=Secrets check failed::Failing step(s): $failed — expand each step above in the job log to see the specific error."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Data file scan (warn/fail per policy) ---
@@ -279,8 +285,8 @@ jobs:
       count: ${{ steps.check.outputs.count }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -294,9 +300,11 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.check.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=Data files check failed::Step 'Check data files' failed — expand it above in the job log for details."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- AI usage hints (informational) ---
@@ -307,8 +315,8 @@ jobs:
       files: ${{ steps.detect.outputs.files }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -322,20 +330,31 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.detect.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=AI usage check failed::Step 'Detect AI usage' failed — expand it above in the job log for details."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
-  # --- Dependency security via Dependabot API (free) ---
-  # Requires Dependabot to be enabled org-wide
+  # --- Dependency security: native Dependabot Alerts API, with Trivy vuln scan as fallback ---
+  # The Dependabot path needs org-wide enablement + a token with security_events scope.
+  # If the API returns 403/404, we transparently fall back to Trivy's offline vuln scan
+  # (uses its own DB; no GHAS required) so the check still produces a real result.
   dependencies:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     outputs:
+      # If the native API path 403/404'd and we fell back to Trivy, surface 'trivy-fallback'
+      # so the summary footer doesn't claim Dependabot ran.
+      source: ${{ steps.dep-check.outputs.fallback == 'true' && 'trivy-fallback' || 'github-api' }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - id: dep-check
-        uses: actions/github-script@v7
+      - name: Query Dependabot Alerts API
+        id: dep-check
+        uses: actions/github-script@v8
         continue-on-error: true
         env:
           DEPENDABOT_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
@@ -352,32 +371,7 @@ jobs:
 
               const critical = alerts.data.filter(a => a.security_vulnerability?.severity === 'critical');
               const high = alerts.data.filter(a => a.security_vulnerability?.severity === 'high');
-              const medium = alerts.data.filter(a => a.security_vulnerability?.severity === 'medium');
-              const low = alerts.data.filter(a => a.security_vulnerability?.severity === 'low');
 
-              // Build summary table
-              core.summary.addHeading('Dependabot Security Alerts', 2);
-              core.summary.addTable([
-                [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
-                ['🔴 Critical', String(critical.length)],
-                ['🟠 High', String(high.length)],
-                ['🟡 Medium', String(medium.length)],
-                ['🟢 Low', String(low.length)]
-              ]);
-
-              // List critical and high alerts
-              if (critical.length + high.length > 0) {
-                core.summary.addHeading('Critical & High Severity', 3);
-                const items = [...critical, ...high].slice(0, 10).map(a =>
-                  `**${a.dependency.package.name}** (${a.dependency.package.ecosystem}): ${a.security_advisory.summary}`
-                );
-                core.summary.addList(items);
-                core.summary.addLink('View all alerts', `https://github.com/${owner}/${repo}/security/dependabot`);
-              }
-
-              await core.summary.write();
-
-              // Fail on critical/high
               if (critical.length > 0 || high.length > 0) {
                 core.setFailed(`Found ${critical.length} critical and ${high.length} high severity vulnerabilities. Review: https://github.com/${owner}/${repo}/security/dependabot`);
               } else if (alerts.data.length > 0) {
@@ -387,19 +381,71 @@ jobs:
               }
             } catch (e) {
               if (e.status === 404 || e.status === 403) {
-                core.warning('Dependabot alerts not accessible. Enable at: Settings > Code security > Dependabot alerts');
+                core.warning(`Dependabot Alerts API returned ${e.status} (token lacks security_events scope, or alerts not enabled). Falling back to Trivy vulnerability scan.`);
+                core.setOutput('fallback', 'true');
               } else {
                 throw e;
               }
             }
+
+      # --- Trivy: runs only when the Dependabot API path was inaccessible ---
+      - uses: actions/checkout@v5
+        if: steps.dep-check.outputs.fallback == 'true'
+      - name: Trivy vulnerability fallback
+        id: trivy-vuln
+        if: steps.dep-check.outputs.fallback == 'true'
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
       - name: Set outcome
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+          failed=""
+          if [ "${{ steps.dep-check.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Query Dependabot Alerts API"; fi
+          if [ "${{ steps.trivy-vuln.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Trivy vulnerability fallback"; fi
+          if [ -n "$failed" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=Dependencies check failed::Failing step(s): $failed — expand each step above in the job log to see the specific vulnerabilities or token/scope error."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
+          fi
+
+  # --- Dependency license compatibility via Trivy (free, public + private, no GHAS) ---
+  # Trivy scans dependency manifests (package.json, requirements.txt, pyproject.toml,
+  # go.mod, Cargo.toml, Gemfile.lock, etc.) and classifies discovered licenses.
+  # CRITICAL/HIGH severity = restricted / unknown licenses (GPL family, etc.) → fail.
+  # MEDIUM/LOW = weak-copyleft / notice → informational only.
+  dependency-licenses:
+    runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.set-outcome.outputs.result }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Trivy license scan
+        id: scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: license
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+      - name: Set outcome
+        id: set-outcome
+        if: always()
+        run: |
+          if [ "${{ steps.scan.outcome }}" = "failure" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=Dependency licenses check failed::Step 'Trivy license scan' failed — restricted licenses (HIGH/CRITICAL) found in dependencies. Expand it above for the package list."
+            exit 1
+          else
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
   # --- Code quality/security: prefer local linters; fallback to Super-Linter ---
@@ -408,7 +454,11 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      # Super-Linter compares HEAD to the default branch and needs the full history
+      # to find both. Without fetch-depth: 0, it fatals with
+      # "The GITHUB_SHA reference (<sha>) doesn't exist in this Git repository".
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
 
       - name: Detect & run local linters
         id: local
@@ -427,7 +477,7 @@ jobs:
           elif [ -f ".flake8" ] || ( [ -f "setup.cfg" ] && grep -q "\[flake8\]" setup.cfg ); then
             echo "flake8 config found"; pip install flake8; flake8 .; found=1
           fi
-          if [ $found -eq 0 ]; then echo "fallback=true" >> $GITHUB_OUTPUT; fi
+          if [ $found -eq 0 ]; then echo "fallback=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Super-Linter fallback
         id: superlinter
@@ -437,6 +487,11 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WB-IGO-RIDER*.md are canonical files mirrored from worldbank/.github;
+          # linting them would force us to diverge from the canonical content.
+          FILTER_REGEX_EXCLUDE: ".*WB-IGO-RIDER.*\\.md"
+          # Override default markdown rules by dropping this file into `.github/linters/` in the calling repo.
+          MARKDOWN_CONFIG_FILE: .markdownlint.json
           # Only enable essential linters
           VALIDATE_YAML: true
           VALIDATE_JSON: true
@@ -447,20 +502,35 @@ jobs:
         id: set-outcome
         if: always()
         run: |
-          if [ "${{ steps.local.outcome }}" = "failure" ] || \
-             [ "${{ steps.superlinter.outcome }}" = "failure" ]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+          failed=""
+          if [ "${{ steps.local.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Detect & run local linters"; fi
+          if [ "${{ steps.superlinter.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Super-Linter fallback"; fi
+          if [ -n "$failed" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "::error title=Code quality check failed::Failing step(s): $failed — expand each step above in the job log to see the specific lint error."
+            exit 1
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
 
-  # --- Summary: Create/update issue for failed checks (default branch only) ---
+  # --- Summary: Create/update a compliance issue every run (paper trail) ---
+  # Runs regardless of upstream success/failure (always()) and regardless of branch,
+  # so PR/feature-branch runs also produce the issue. On all-pass the issue is
+  # created (if missing) and immediately closed — kept open only when checks fail.
   summary:
     runs-on: ubuntu-latest
-    needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, code-quality-basic]
-    if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    # Write scopes are concentrated here: this is the only job that posts
+    # comments / manages issues, and it never executes PR-supplied code.
+    permissions:
+      contents: read
+      security-events: read    # codeScanning.listAlertsForRepo
+      actions: read            # actions.listJobsForWorkflowRun
+      issues: write            # issues.create/update + PR-conversation comments
+      pull-requests: write     # PR-conversation comments (joint requirement with issues)
+    needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, dependency-licenses, code-quality-basic]
+    if: always()
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -512,6 +582,7 @@ jobs:
               'Secrets': '${{ needs.secrets.outputs.outcome }}' || '${{ needs.secrets.result }}',
               'Data Files': '${{ needs.data-files.outputs.outcome }}' || '${{ needs.data-files.result }}',
               'Dependencies': '${{ needs.dependencies.outputs.outcome }}' || '${{ needs.dependencies.result }}',
+              'Dependency Licenses': '${{ needs.dependency-licenses.outputs.outcome }}' || '${{ needs.dependency-licenses.result }}',
               'Code Quality (Basic)': '${{ needs.code-quality-basic.outputs.outcome }}' || '${{ needs.code-quality-basic.result }}',
               'Code Quality (CodeQL)': codeqlStatus
             };
@@ -548,6 +619,7 @@ jobs:
               'Secrets': 'secrets',
               'Data Files': 'data-files',
               'Dependencies': 'dependencies',
+              'Dependency Licenses': 'dependency-licenses',
               'Code Quality (Basic)': 'code-quality-basic'
             };
 
@@ -642,8 +714,18 @@ jobs:
             const secretsSource = '${{ needs.secrets.outputs.source }}' || 'unknown';
             infoContent.push('');
             infoContent.push(`**GitHub Native Integration**`);
-            infoContent.push(`- **Secret Scanning:** ${secretsSource === 'github-api' ? 'Using GitHub Secret Scanning API' : 'Using TruffleHog (private repo)'}`);
-            infoContent.push(`- **Dependabot:** Using Dependabot Alerts API`);
+            const secretsLabel = {
+              'github-api': 'GitHub Secret Scanning API',
+              'trufflehog': 'TruffleHog (private repo)',
+              'trufflehog-fallback': 'TruffleHog (Secret Scanning API unavailable)',
+            }[secretsSource] || `Unknown source: ${secretsSource}`;
+            infoContent.push(`- **Secret Scanning:** ${secretsLabel}`);
+            const depsSource = '${{ needs.dependencies.outputs.source }}' || 'unknown';
+            const depsLabel = {
+              'github-api': 'Dependabot Alerts API',
+              'trivy-fallback': 'Trivy (Dependabot API unavailable)',
+            }[depsSource] || `Unknown source: ${depsSource}`;
+            infoContent.push(`- **Dependabot:** ${depsLabel}`);
             infoContent.push(`- **CodeQL:** ${codeqlSummary}`);
 
             const body = `## Compliance Check Results
@@ -661,51 +743,90 @@ jobs:
             ${infoContent.join('\n')}
 
             ---
-            *This issue is auto-managed by the [open source compliance workflow](https://github.com/${owner}/${repo}/actions/workflows/compliance.yml). Click on each item to review details. Push to the default branch to re-run checks and update the checklist. Issue closes when all required checks pass (code quality checks are optional).*
+            *Auto-managed by the [open source compliance workflow](https://github.com/${owner}/${repo}/actions/workflows/compliance.yml). Click each item to view job details. On the default branch, the persistent compliance issue stays open while any required check is failing and is closed once they all pass. (Code quality checks are optional.)*
             `.replace(/^            /gm, '');
 
-            // Search for existing issue
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner, repo,
-              state: 'all',
-              labels: 'compliance',
-              per_page: 10
-            });
+            // Always write the checklist to the Actions run summary
+            await core.summary.addRaw(body).write();
 
-            const existingIssue = issues.find(i => i.title === issueTitle);
+            // --- Route the summary based on what triggered this run ---
+            //
+            //   pull_request                                     → upsert a comment on the PR
+            //   push / schedule / workflow_dispatch ON           → manage the persistent repo issue
+            //     default branch                                   (the authoritative "is main compliant?" record)
+            //   anything else (e.g. push to feat/*, or           → workflow summary only — no PR comment,
+            //     workflow_dispatch from a feature branch)         no issue update
 
-            if (hasFailures) {
+            const eventName = context.eventName;
+            const defaultBranch = repoMeta.data.default_branch;
+            const isOnDefaultBranch = context.ref === `refs/heads/${defaultBranch}`;
+            const isPR = eventName === 'pull_request';
+            const isAuthoritative = isOnDefaultBranch && (
+              eventName === 'push' ||
+              eventName === 'schedule' ||
+              eventName === 'workflow_dispatch'
+            );
+
+            if (isPR) {
+              const prNumber = context.payload.pull_request.number;
+              const marker = '<!-- compliance-check-summary -->';
+              const commentBody = `${marker}\n${body}`;
+
+              const { data: comments } = await github.rest.issues.listComments({
+                owner, repo, issue_number: prNumber, per_page: 100
+              });
+              const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner, repo, comment_id: existing.id, body: commentBody
+                });
+                core.info(`Updated compliance comment on PR #${prNumber}`);
+              } else {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber, body: commentBody
+                });
+                core.info(`Posted compliance comment on PR #${prNumber}`);
+              }
+            } else if (isAuthoritative) {
+              // Persistent repo issue: paper trail of default-branch compliance state.
+              // Open if any required check failed, closed otherwise.
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner, repo,
+                state: 'all',
+                labels: 'compliance',
+                per_page: 10
+              });
+              const existingIssue = issues.find(i => i.title === issueTitle);
+
               if (existingIssue) {
-                // Update existing issue
-                await github.rest.issues.update({
+                const update = {
                   owner, repo,
                   issue_number: existingIssue.number,
                   body,
-                  state: 'open'
-                });
-                core.info(`Updated issue #${existingIssue.number}`);
+                  state: hasFailures ? 'open' : 'closed'
+                };
+                if (!hasFailures) update.state_reason = 'completed';
+                await github.rest.issues.update(update);
+                core.info(`${hasFailures ? 'Updated' : 'Closed'} issue #${existingIssue.number}`);
               } else {
-                // Create new issue
-                await github.rest.issues.create({
+                const { data: newIssue } = await github.rest.issues.create({
                   owner, repo,
                   title: issueTitle,
                   body,
                   labels: ['compliance']
                 });
-                core.info('Created new compliance issue');
+                core.info(`Created issue #${newIssue.number}`);
+                if (!hasFailures) {
+                  await github.rest.issues.update({
+                    owner, repo,
+                    issue_number: newIssue.number,
+                    state: 'closed',
+                    state_reason: 'completed'
+                  });
+                  core.info(`Closed issue #${newIssue.number} — all checks passed (paper trail)`);
+                }
               }
             } else {
-              // All passed - close issue if exists
-              if (existingIssue && existingIssue.state === 'open') {
-                await github.rest.issues.update({
-                  owner, repo,
-                  issue_number: existingIssue.number,
-                  body,
-                  state: 'closed',
-                  state_reason: 'completed'
-                });
-                core.info(`Closed issue #${existingIssue.number} - all checks passed`);
-              } else {
-                core.info('All checks passed, no issue to update');
-              }
+              core.info(`Event ${eventName} on ${context.ref} — workflow summary only (no PR comment or repo issue)`);
             }

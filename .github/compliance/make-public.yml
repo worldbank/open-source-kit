@@ -12,12 +12,10 @@ on:
 
 permissions:
   contents: read
-  security-events: write
+  security-events: read
   actions: read
-  checks: write
-  pull-requests: read
-  statuses: write
   issues: write
+  pull-requests: write
 
 jobs:
   compliance:

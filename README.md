@@ -19,6 +19,7 @@ See [How Teams Adopt](#how-teams-adopt) for the full walkthrough.
 - **Secrets** — Queries GitHub Secret Scanning API (public repos); TruffleHog fallback (private repos)
 - **Data Files** — Warns on large data files; suggests data catalog
 - **Dependencies** — Queries Dependabot Alerts API
+- **Dependency Licenses** — Trivy filesystem scan; fails on restricted licenses (GPL family, etc.). Works on public + private repos with no GHAS required
 - **Code Quality (Basic)** — Local linters (eslint/ruff/flake8) or Super-Linter fallback
 - **Code Quality (CodeQL)** — Queries GitHub Code Scanning API (public repos); skipped for private repos
 - **Tech Stack** — GitHub Languages API + framework detection (informational)
@@ -26,7 +27,15 @@ See [How Teams Adopt](#how-teams-adopt) for the full walkthrough.
 
 For Secret Scanning, Dependabot, and CodeQL, the workflow **queries native GitHub APIs**.
 
-On the default branch, a **compliance issue** is automatically created/updated with a checklist of results. The issue closes when all required checks pass (code quality checks are optional).
+### Where results show up
+
+| Trigger | Surface |
+|---|---|
+| Pull request | A **PR comment** with the checklist is upserted on each push, so teams can iterate on fixes pre-merge without thrashing the persistent issue. |
+| Push to default branch · daily cron · manual dispatch | The **persistent compliance issue** is created/updated as the authoritative paper trail. It stays open while any required check fails and is closed (with a final summary) once all pass. |
+| Any other push (e.g. a feature branch with no open PR) | Workflow summary only — no issue or comment. |
+
+Code quality checks are optional and don't block the issue from closing.
 
 ## Org Prerequisites
 
@@ -39,7 +48,7 @@ On the default branch, a **compliance issue** is automatically created/updated w
 
 This kit provides two complementary tools that teams can use to prepare their repositories for open source publication.
 
-1. **Compliance Workflow** (automated CI): A reusable GitHub Actions workflow that runs on every push, PR, and daily schedule. It checks license, README, secrets, data files, dependencies, and code quality, then creates a compliance issue with pass/fail results. The team iterates until checks pass.
+1. **Compliance Workflow** (automated CI): A reusable GitHub Actions workflow that runs on every push to the default branch, every PR, and a daily schedule. It checks license, README, secrets, data files, dependencies, dependency licenses, and code quality. PR runs comment the checklist directly on the PR; default-branch runs update a persistent compliance issue (paper trail). The team iterates until checks pass.
 2. **Copilot Skill** (interactive self-service): A Copilot skill that audits the repo interactively, generates a structured report, and helps create or fix compliance files. Teams copy the skill into their repo and invoke it in VS Code.
 
 The intranet **public repository review request form** links to this repo so that teams can self-service their preparation before submitting for review.
@@ -52,9 +61,9 @@ The compliance workflow continues running after publication as an ongoing check.
 
 ### Step 1a: Add the compliance workflow
 
-Copy [`.github/compliance/sample-per-repo-caller.yml`](.github/compliance/sample-per-repo-caller.yml) to the target repo as `.github/workflows/compliance.yml`. Push to the default branch. The workflow runs automatically and creates a compliance issue with a checklist of results.
+Copy [`.github/compliance/sample-per-repo-caller.yml`](.github/compliance/sample-per-repo-caller.yml) to the target repo as `.github/workflows/compliance.yml`. Push to the default branch. The workflow runs automatically and opens a persistent compliance issue with a checklist of results.
 
-The team reviews the compliance issue and fixes failures. The workflow re-runs on each push and updates the issue automatically.
+Teams that work through pull requests get the same checklist as a **PR comment** on each PR push, so fixes can be iterated and verified before merging. The persistent compliance issue only reflects the state of the default branch.
 
 ### Step 1b: Use the Copilot skill for interactive review
 

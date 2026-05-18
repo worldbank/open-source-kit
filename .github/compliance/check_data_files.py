@@ -1,17 +1,23 @@
-import os, json
+import os
+import json
 
-DATA_EXT = {".csv",".tsv",".parquet",".xlsx",".zip",".gz",".jsonl",".feather",".sav",".dta",".rds",".db",".sqlite",".shp",".geojson",".gpkg"}
+DATA_EXT = {
+    ".csv", ".tsv", ".parquet", ".xlsx", ".zip", ".gz", ".jsonl",
+    ".feather", ".sav", ".dta", ".rds", ".db", ".sqlite", ".shp",
+    ".geojson", ".gpkg",
+}
 MAX_INLINE_BYTES = 512 * 1024
 
 violations = []  # Large files that should use external storage
 detected = []    # All data files found
 
-for root,_,files in os.walk("."):
-    if root.startswith("./.git"): continue
+for root, _, files in os.walk("."):
+    if root.startswith("./.git"):
+        continue
     for f in files:
         ext = os.path.splitext(f)[1].lower()
         if ext in DATA_EXT:
-            path = os.path.join(root,f)
+            path = os.path.join(root, f)
             try:
                 size = os.path.getsize(path)
             except OSError:
@@ -23,7 +29,7 @@ for root,_,files in os.walk("."):
 # Report violations
 if violations:
     print("Large data files detected (>512KB):")
-    for p,s in violations:
+    for p, s in violations:
         print(f"::error::{p} is {s:,} bytes; must use Git LFS or external storage")
     exit(1)
 
@@ -38,6 +44,6 @@ if detected:
 # Output for GitHub Actions
 if "GITHUB_OUTPUT" in os.environ:
     with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-        f.write(f"violations={json.dumps([p for p,s in violations])}\n")
+        f.write(f"violations={json.dumps([p for p, s in violations])}\n")
         f.write(f"detected={json.dumps(detected[:20])}\n")
         f.write(f"count={len(detected)}\n")

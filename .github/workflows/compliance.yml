@@ -1,0 +1,28 @@
+name: Open Source Compliance
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule: [{ cron: '17 2 * * *' }]
+  workflow_dispatch:
+    inputs:
+      history_depth:
+        description: 'Commits to scan for secrets (0 = off)'
+        type: number
+        default: 0
+
+# Caller declares the SUPERSET of perms any job in the reusable workflow may use.
+# The reusable workflow narrows further per-job — write scopes only land in `summary`.
+permissions:
+  contents: read
+  security-events: read
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/repo-compliance.yml
+    with:
+      history_depth: ${{ inputs.history_depth || 0 }}
+    secrets: inherit

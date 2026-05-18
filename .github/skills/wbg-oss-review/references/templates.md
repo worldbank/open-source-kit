@@ -9,6 +9,7 @@ These are *starting points*, not fill-in-the-blank forms. Before generating any 
 The README should feel like it was written by someone who understands the project deeply. Read the code and existing docs first.
 
 **Project types and their README emphasis:**
+
 - **Library/package**: Lead with a code snippet showing the main use case. Emphasize API and installation.
 - **Web application**: Screenshot is important. Focus on deployment and getting the app running.
 - **Research scripts / notebooks**: Emphasize data inputs/outputs, reproducibility, and what the outputs mean.
@@ -87,7 +88,7 @@ The following exact text must appear at the bottom of the README. Pick the block
 
 **MIT:**
 
-```
+```text
 This project is licensed under the MIT License together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the MIT permissions. Please review both files
@@ -96,7 +97,7 @@ before using, distributing or contributing.
 
 **Apache License, Version 2.0:**
 
-```
+```text
 This project is licensed under the Apache License, Version 2.0 together with the World Bank IGO Rider.
 The Rider is purely procedural: it reserves all privileges and immunities enjoyed by the
 World Bank, without adding restrictions to the Apache permissions. Please review both files
@@ -130,6 +131,7 @@ keywords:
 ```
 
 If the project has an associated paper or preprint, add:
+
 ```yaml
 preferred-citation:
   type: article
@@ -148,7 +150,7 @@ Full template reference: https://github.com/worldbank/template/blob/main/CITATIO
 
 ## LICENSE — MIT License
 
-```
+```text
 MIT License
 
 Copyright (c) [year] The World Bank
@@ -173,6 +175,7 @@ SOFTWARE.
 ```
 
 The WB IGO Rider (MIT) must also be present. Either:
+
 - Fetch the current text from https://github.com/worldbank/.github/blob/main/WB-IGO-RIDER.md and save as `WB-IGO-RIDER.md`
 - Or create `WB-IGO-RIDER.md` that clearly references the canonical URL
 
@@ -186,7 +189,7 @@ Use the **verbatim** Apache License, Version 2.0 text (not summarized) from the 
 
 In the **APPENDIX** (end of the license), set the copyright line to something like:
 
-```
+```text
 Copyright [yyyy] The World Bank
 ```
 
@@ -260,6 +263,7 @@ See the [README](https://github.com/worldbank/[repo-name]#readme) for installati
 ```
 
 To enable GitHub Pages from a `docs/` folder:
+
 1. Push the file to `docs/index.md` (or `docs/index.html`) on the default branch
 2. Go to GitHub repo Settings → Pages
 3. Set Source to "Deploy from a branch", Branch = `main`, folder = `/docs`
