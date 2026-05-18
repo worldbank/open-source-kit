@@ -19,14 +19,11 @@ on:
         description: "PAT with Dependabot alerts read permission"
         required: false
 
+# Workflow default = minimum (just checkout). Jobs that need more declare it
+# per-job below. This limits the blast radius if a PR contributes hostile code
+# (e.g. malicious package postinstall scripts run by ESLint / Super-Linter).
 permissions:
   contents: read
-  security-events: write
-  actions: read
-  checks: write
-  pull-requests: write
-  statuses: write
-  issues: write
 
 jobs:
   # --- License via GitHub API (whitelist MIT/Apache-2.0) + WB IGO Riders ---
@@ -188,6 +185,9 @@ jobs:
   # --- Secrets: query native Secret Scanning API (public); TruffleHog fallback (private or API 403/404) ---
   secrets:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     outputs:
       # If the public API path 403/404'd and we fell back to TruffleHog, surface
       # 'trufflehog-fallback' so the summary footer doesn't claim the native API ran.
@@ -358,6 +358,9 @@ jobs:
   # (uses its own DB; no GHAS required) so the check still produces a real result.
   dependencies:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     outputs:
       # If the native API path 403/404'd and we fell back to Trivy, surface 'trivy-fallback'
       # so the summary footer doesn't claim Dependabot ran.
@@ -645,6 +648,14 @@ jobs:
   # created (if missing) and immediately closed — kept open only when checks fail.
   summary:
     runs-on: ubuntu-latest
+    # Write scopes are concentrated here: this is the only job that posts
+    # comments / manages issues, and it never executes PR-supplied code.
+    permissions:
+      contents: read
+      security-events: read    # codeScanning.listAlertsForRepo
+      actions: read            # actions.listJobsForWorkflowRun
+      issues: write            # issues.create/update + PR-conversation comments
+      pull-requests: write     # PR-conversation comments (joint requirement with issues)
     needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, dependency-licenses, code-quality-basic]
     if: always()
     steps:
