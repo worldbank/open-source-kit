@@ -32,10 +32,10 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: License from GitHub API
         id: gh-license
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const meta = await github.rest.repos.get(context.repo);
@@ -123,8 +123,8 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -163,15 +163,15 @@ jobs:
       frameworks: ${{ steps.detect.outputs.frameworks }}
       # languages comes from GitHub API, frameworks from detect_stack.py
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
           sparse-checkout: .github/compliance
       - name: GitHub Languages API
         id: langs
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const r = await github.rest.repos.listLanguages(context.repo);
@@ -196,7 +196,7 @@ jobs:
     steps:
       - name: Determine scan strategy
         id: route
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const meta = await github.rest.repos.get(context.repo);
@@ -210,7 +210,7 @@ jobs:
         id: scan-api
         if: steps.route.outputs.visibility == 'public'
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -241,20 +241,20 @@ jobs:
             }
 
       # --- TruffleHog: runs on private repos OR when the public API path is unavailable ---
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
         with: { fetch-depth: 0 }
       - name: TruffleHog scan
         id: trufflehog
         if: steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true'
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.95.3
         with:
           extra_args: --only-verified
         continue-on-error: true
       - name: TruffleHog deep history scan
         if: (steps.route.outputs.visibility != 'public' || steps.scan-api.outputs.fallback == 'true') && inputs.history_depth > 0
         run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.95.3/scripts/install.sh | sh -s -- -b /usr/local/bin
           trufflehog git file://. --no-update --json > trufflehog-results.json 2>/dev/null || true
           if [ -s trufflehog-results.json ]; then
             echo "::warning::Potential secrets found in git history"
@@ -285,8 +285,8 @@ jobs:
       count: ${{ steps.check.outputs.count }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -315,8 +315,8 @@ jobs:
       files: ${{ steps.detect.outputs.files }}
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: worldbank/open-source-kit
           path: .compliance
@@ -354,7 +354,7 @@ jobs:
     steps:
       - name: Query Dependabot Alerts API
         id: dep-check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         env:
           DEPENDABOT_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
@@ -389,7 +389,7 @@ jobs:
             }
 
       # --- Trivy: runs only when the Dependabot API path was inaccessible ---
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.dep-check.outputs.fallback == 'true'
       - name: Trivy vulnerability fallback
         id: trivy-vuln
@@ -426,7 +426,7 @@ jobs:
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Trivy license scan
         id: scan
         continue-on-error: true
@@ -457,7 +457,7 @@ jobs:
       # Super-Linter compares HEAD to the default branch and needs the full history
       # to find both. Without fetch-depth: 0, it fatals with
       # "The GITHUB_SHA reference (<sha>) doesn't exist in this Git repository".
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
       - name: Detect & run local linters
@@ -530,7 +530,7 @@ jobs:
     needs: [license, readme, tech-stack, secrets, data-files, ai-usage, dependencies, dependency-licenses, code-quality-basic]
     if: always()
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
