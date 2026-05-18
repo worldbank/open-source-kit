@@ -221,25 +221,10 @@ jobs:
                 owner, repo, state: 'open', per_page: 100
               });
 
-              core.summary.addHeading('Secret Scanning Alerts (GitHub native)', 2);
-
               if (alerts.data.length === 0) {
-                core.summary.addRaw('✅ No open secret scanning alerts\n');
-                await core.summary.write();
-                core.info('No open secret scanning alerts');
+                core.info('✅ No open secret scanning alerts');
                 return;
               }
-
-              const items = alerts.data.slice(0, 10).map(a =>
-                `**${a.secret_type_display_name}** — ${a.state} (created ${a.created_at.substring(0, 10)})`
-              );
-              core.summary.addList(items);
-              if (alerts.data.length > 10) {
-                core.summary.addRaw(`...and ${alerts.data.length - 10} more\n`);
-              }
-              core.summary.addLink('View all alerts', `https://github.com/${owner}/${repo}/security/secret-scanning`);
-              await core.summary.write();
-
               core.setFailed(`Found ${alerts.data.length} open secret scanning alerts. Review: https://github.com/${owner}/${repo}/security/secret-scanning`);
             } catch (e) {
               if (e.status === 404) {
@@ -386,32 +371,7 @@ jobs:
 
               const critical = alerts.data.filter(a => a.security_vulnerability?.severity === 'critical');
               const high = alerts.data.filter(a => a.security_vulnerability?.severity === 'high');
-              const medium = alerts.data.filter(a => a.security_vulnerability?.severity === 'medium');
-              const low = alerts.data.filter(a => a.security_vulnerability?.severity === 'low');
 
-              // Build summary table
-              core.summary.addHeading('Dependabot Security Alerts', 2);
-              core.summary.addTable([
-                [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
-                ['🔴 Critical', String(critical.length)],
-                ['🟠 High', String(high.length)],
-                ['🟡 Medium', String(medium.length)],
-                ['🟢 Low', String(low.length)]
-              ]);
-
-              // List critical and high alerts
-              if (critical.length + high.length > 0) {
-                core.summary.addHeading('Critical & High Severity', 3);
-                const items = [...critical, ...high].slice(0, 10).map(a =>
-                  `**${a.dependency.package.name}** (${a.dependency.package.ecosystem}): ${a.security_advisory.summary}`
-                );
-                core.summary.addList(items);
-                core.summary.addLink('View all alerts', `https://github.com/${owner}/${repo}/security/dependabot`);
-              }
-
-              await core.summary.write();
-
-              // Fail on critical/high
               if (critical.length > 0 || high.length > 0) {
                 core.setFailed(`Found ${critical.length} critical and ${high.length} high severity vulnerabilities. Review: https://github.com/${owner}/${repo}/security/dependabot`);
               } else if (alerts.data.length > 0) {
@@ -441,49 +401,6 @@ jobs:
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
-          format: json
-          output: trivy-vuln.json
-      - name: Summarize Trivy vuln findings
-        if: steps.dep-check.outputs.fallback == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (!fs.existsSync('trivy-vuln.json')) {
-              core.warning('Trivy did not produce a vulnerability report');
-              return;
-            }
-            const report = JSON.parse(fs.readFileSync('trivy-vuln.json', 'utf8'));
-            const findings = [];
-            for (const result of report.Results || []) {
-              for (const v of result.Vulnerabilities || []) {
-                findings.push({
-                  pkg: v.PkgName || result.Target || 'unknown',
-                  id: v.VulnerabilityID || 'UNKNOWN',
-                  severity: v.Severity || 'UNKNOWN',
-                  installed: v.InstalledVersion || '',
-                  fixed: v.FixedVersion || ''
-                });
-              }
-            }
-            const critical = findings.filter(f => f.severity === 'CRITICAL');
-            const high = findings.filter(f => f.severity === 'HIGH');
-
-            core.summary.addHeading('Dependency Vulnerabilities (Trivy fallback)', 2);
-            core.summary.addTable([
-              [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
-              ['🔴 Critical', String(critical.length)],
-              ['🟠 High', String(high.length)]
-            ]);
-            if (critical.length + high.length > 0) {
-              core.summary.addHeading('Critical & High Severity', 3);
-              const items = [...critical, ...high].slice(0, 20).map(f =>
-                `**${f.pkg}** (${f.installed}${f.fixed ? ` → fixed in ${f.fixed}` : ''}): ${f.id}`
-              );
-              core.summary.addList(items);
-            }
-            await core.summary.write();
-
       - name: Set outcome
         id: set-outcome
         if: always()
@@ -519,52 +436,6 @@ jobs:
           scanners: license
           severity: HIGH,CRITICAL
           exit-code: '1'
-          format: json
-          output: trivy-licenses.json
-      - name: Summarize license findings
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (!fs.existsSync('trivy-licenses.json')) {
-              core.warning('Trivy did not produce a report — license scan may have errored');
-              return;
-            }
-            const report = JSON.parse(fs.readFileSync('trivy-licenses.json', 'utf8'));
-            const findings = [];
-            for (const result of report.Results || []) {
-              for (const lic of result.Licenses || []) {
-                findings.push({
-                  pkg: lic.PkgName || result.Target || 'unknown',
-                  license: lic.Name || 'UNKNOWN',
-                  category: lic.Category || 'unknown',
-                  severity: lic.Severity || 'UNKNOWN'
-                });
-              }
-            }
-            const restricted = findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH');
-            const weak = findings.filter(f => f.severity === 'MEDIUM' || f.severity === 'LOW');
-
-            core.summary.addHeading('Dependency License Scan (Trivy)', 2);
-            core.summary.addTable([
-              [{ data: 'Severity', header: true }, { data: 'Count', header: true }],
-              ['🔴 Restricted (HIGH/CRITICAL)', String(restricted.length)],
-              ['🟡 Weak / Notice (MEDIUM/LOW)', String(weak.length)],
-              ['✅ Permissive / Unencumbered', String(findings.length - restricted.length - weak.length)]
-            ]);
-
-            if (restricted.length > 0) {
-              core.summary.addHeading('Restricted Licenses (blocking)', 3);
-              const items = restricted.slice(0, 20).map(f =>
-                `**${f.pkg}** — ${f.license} (${f.category})`
-              );
-              core.summary.addList(items);
-              if (restricted.length > 20) {
-                core.summary.addRaw(`...and ${restricted.length - 20} more\n`);
-              }
-            }
-            await core.summary.write();
       - name: Set outcome
         id: set-outcome
         if: always()
@@ -874,6 +745,9 @@ jobs:
             ---
             *Auto-managed by the [open source compliance workflow](https://github.com/${owner}/${repo}/actions/workflows/compliance.yml). Click each item to view job details. On the default branch, the persistent compliance issue stays open while any required check is failing and is closed once they all pass. (Code quality checks are optional.)*
             `.replace(/^            /gm, '');
+
+            // Always write the checklist to the Actions run summary
+            await core.summary.addRaw(body).write();
 
             // --- Route the summary based on what triggered this run ---
             //
