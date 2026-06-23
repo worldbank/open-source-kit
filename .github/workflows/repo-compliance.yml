@@ -459,6 +459,15 @@ jobs:
       # "The GITHUB_SHA reference (<sha>) doesn't exist in this Git repository".
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
+      - uses: actions/checkout@v5
+        with:
+          repository: worldbank/open-source-kit
+          path: .compliance
+          sparse-checkout: .github/linters
+      - name: Ensure markdownlint config
+        run: |
+          mkdir -p .github/linters
+          [ -f .github/linters/.markdownlint.json ] || cp .compliance/.github/linters/.markdownlint.json .github/linters/.markdownlint.json
 
       - name: Detect & run local linters
         id: local
