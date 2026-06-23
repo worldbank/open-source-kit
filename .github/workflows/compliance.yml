@@ -24,5 +24,5 @@ jobs:
   run:
     uses: ./.github/workflows/repo-compliance.yml
     with:
-      history_depth: ${{ inputs.history_depth || 0 }}
+      history_depth: ${{ fromJSON(inputs.history_depth || 0) }}
     secrets: inherit

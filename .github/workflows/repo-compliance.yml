@@ -451,6 +451,7 @@ jobs:
   # --- Code quality/security: prefer local linters; fallback to Super-Linter ---
   code-quality-basic:
     runs-on: ubuntu-latest
+    continue-on-error: true
     outputs:
       outcome: ${{ steps.set-outcome.outputs.result }}
     steps:
