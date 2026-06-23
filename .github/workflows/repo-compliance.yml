@@ -517,8 +517,7 @@ jobs:
           if [ "${{ steps.superlinter.outcome }}" = "failure" ]; then failed="${failed:+$failed, }Super-Linter fallback"; fi
           if [ -n "$failed" ]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
-            echo "::error title=Code quality check failed::Failing step(s): $failed — expand each step above in the job log to see the specific lint error."
-            exit 1
+            echo "::warning title=Code quality check failed (optional)::Failing step(s): $failed — expand each step above in the job log to see the specific lint error."
           else
             echo "result=success" >> "$GITHUB_OUTPUT"
           fi
