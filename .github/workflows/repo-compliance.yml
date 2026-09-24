@@ -651,8 +651,18 @@ jobs:
             };
 
             let hasFailures = false;
-            let incomplete = false;
             let checklistItems = [];
+
+            // Reliable per-job conclusions: the `jobs` map's outcome can mask a cancellation as
+            // success (a cancelled job's always() set-outcome step reports success when no step
+            // *failed*), so read `.result` from the needs context instead. A cancelled *required*
+            // check makes the open/close decision unreliable -> leave the issue unchanged; a cancelled
+            // informational (tech-stack/ai-usage) or optional job must not suppress filing a real
+            // failure. Required = a real job (in jobNameMap) that isn't optional.
+            const needsResults = ${{ toJSON(needs) }};
+            const incomplete = Object.entries(jobNameMap)
+              .filter(([display]) => !optionalChecks.has(display))
+              .some(([, jobId]) => needsResults[jobId]?.result === 'cancelled');
 
             for (const [name, result] of Object.entries(jobs)) {
               let icon = statusIcon(result);
@@ -675,12 +685,8 @@ jobs:
               const checkbox = result === 'success' ? '[x]' : '[ ]';
               checklistItems.push(`- ${checkbox} ${icon} **[${name}](${url})** - ${result}${label}`);
 
-              if (result === 'failure' || result === 'skipped') {
-                if (!isOptional) {
-                  hasFailures = true;
-                }
-              } else if (result === 'cancelled') {
-                incomplete = true;
+              if ((result === 'failure' || result === 'skipped') && !isOptional) {
+                hasFailures = true;
               }
             }
 
