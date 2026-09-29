@@ -653,8 +653,19 @@ jobs:
             let hasFailures = false;
             let checklistItems = [];
 
+            // Reliable per-job conclusions: the `jobs` map's outcome can mask a cancellation as
+            // success (a cancelled job's always() set-outcome step reports success when no step
+            // *failed*), so read `.result` from the needs context instead. A cancelled *required*
+            // check makes the open/close decision unreliable -> leave the issue unchanged; a cancelled
+            // informational (tech-stack/ai-usage) or optional job must not suppress filing a real
+            // failure. Required = a real job (in jobNameMap) that isn't optional.
+            const needsResults = ${{ toJSON(needs) }};
+            const incomplete = Object.entries(jobNameMap)
+              .filter(([display]) => !optionalChecks.has(display))
+              .some(([, jobId]) => needsResults[jobId]?.result === 'cancelled');
+
             for (const [name, result] of Object.entries(jobs)) {
-              const icon = statusIcon(result);
+              let icon = statusIcon(result);
               const isOptional = optionalChecks.has(name);
               const isApi = apiChecks.has(name);
               const label = isOptional ? ` *(optional)*` : '';
@@ -668,13 +679,14 @@ jobs:
                 url = findJobUrl(jobName);
               }
 
-              if (result === 'failure' || result === 'skipped') {
-                if (!isOptional) {
-                  hasFailures = true;
-                }
-                checklistItems.push(`- [ ] ${icon} **[${name}](${url})** - ${result}${label}`);
-              } else {
-                checklistItems.push(`- [x] ${icon} **[${name}](${url})** - ${result}${label}`);
+              if (isOptional && result === 'failure') {
+                icon = '🟡';
+              }
+              const checkbox = result === 'success' ? '[x]' : '[ ]';
+              checklistItems.push(`- ${checkbox} ${icon} **[${name}](${url})** - ${result}${label}`);
+
+              if ((result === 'failure' || result === 'skipped') && !isOptional) {
+                hasFailures = true;
               }
             }
 
@@ -752,7 +764,7 @@ jobs:
             ${infoContent.join('\n')}
 
             ---
-            *Auto-managed by the [open source compliance workflow](https://github.com/${owner}/${repo}/actions/workflows/compliance.yml). Click each item to view job details. On the default branch, the persistent compliance issue stays open while any required check is failing and is closed once they all pass. (Code quality checks are optional.)*
+            *Auto-managed by the [open source compliance workflow](https://github.com/${owner}/${repo}/actions/workflows/compliance.yml). Click each item to view job details. On the default branch, the persistent compliance issue stays open while any required check is failing and is closed once they all pass; a cancelled/incomplete run leaves it unchanged. (Code quality checks are optional.)*
             `.replace(/^            /gm, '');
 
             // Always write the checklist to the Actions run summary
@@ -798,6 +810,10 @@ jobs:
                 core.info(`Posted compliance comment on PR #${prNumber}`);
               }
             } else if (isAuthoritative) {
+              if (incomplete) {
+                core.info('Run incomplete (a check was cancelled) — leaving the compliance issue state unchanged');
+                return
+              }
               // Persistent repo issue: paper trail of default-branch compliance state.
               // Open if any required check failed, closed otherwise.
               const { data: issues } = await github.rest.issues.listForRepo({
